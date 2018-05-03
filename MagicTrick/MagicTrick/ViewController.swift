@@ -35,6 +35,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        
+        // Add horizontal plane detection
+        configuration.planeDetection = .horizontal
 
         // Run the view's session
         sceneView.session.run(configuration)
@@ -54,14 +57,46 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     // MARK: - ARSCNViewDelegate
     
-/*
     // Override to create and configure nodes for anchors added to the view's session.
+    var planeNode: SCNNode?
+    
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
-        let node = SCNNode()
+    
+        if anchor is ARPlaneAnchor {
+            print("Found a plane. Now add a node")
+            planeNode = SCNNode()
+            return planeNode
+        }
      
-        return node
+        return nil
     }
-*/
+    
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        if anchor is ARPlaneAnchor {
+            print("Added a node, now adding a plan geometry")
+            let planeNode = planeNodeForAnchor(planeAnchor: anchor as! ARPlaneAnchor)
+            node.addChildNode(planeNode)
+        }
+    }
+    
+    func planeNodeForAnchor(planeAnchor: ARPlaneAnchor) -> SCNNode {
+        
+        let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x), height: CGFloat(planeAnchor.extent.z))
+        
+        let planeMaterial = SCNMaterial()
+        planeMaterial.diffuse.contents = UIColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 0.3)
+        plane.materials = [planeMaterial]
+        
+        let planeNode = SCNNode(geometry: plane)
+        planeNode.position = SCNVector3Make(planeAnchor.center.x, 0, planeAnchor.center.z)
+        
+        // This transform lays the plane flat on the ground rather than standing vertical`
+        planeNode.transform = SCNMatrix4MakeRotation(-Float.pi / 2, 1, 0, 0)
+        
+        return planeNode
+    }
+    
+    // TODO: Learn rendererUpdateNode method!
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
