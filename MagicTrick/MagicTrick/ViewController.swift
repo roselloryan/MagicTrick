@@ -14,6 +14,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
+    var hatIsPlaced = false
+    var hatNode: SCNNode?
+    var ballsThrown = [SCNNode]()
+    var ballsInHat = [SCNNode]()
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -24,15 +30,25 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let hatScene = SCNScene(named: "art.scnassets/hat.scn")!
         
         // Set the scene to the view
-        sceneView.scene = scene
+        sceneView.scene = hatScene
+        
+        // Set hat node as property
+        if let hat = sceneView.scene.rootNode.childNode(withName: "hat", recursively: true) {
+            print("\nSeting hat as property")
+            hatNode = hat
+            hatNode?.removeFromParentNode()
+        }
+
+        // Lighten up gravity
+        sceneView.scene.physicsWorld.gravity = SCNVector3Make(0, -0.2, 0)
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        
+    
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
         
@@ -54,7 +70,71 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         super.didReceiveMemoryWarning()
         // Release any cached data, images, etc that aren't in use.
     }
+    @IBAction func tapDetected(_ sender: UITapGestureRecognizer) {
+        
+        if !hatIsPlaced {
+            let location = sender.location(in: sceneView)
+        
+            let hitResults = sceneView.hitTest(location, types: .existingPlaneUsingExtent)
+        
+            if let hit = hitResults.first {
+                // Get transform form hit plane
+                let transform = hit.worldTransform
+                
+                // Plane postition from 4th column
+                let planePosition = SCNVector3Make(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+                
+                // Create floor
+                let floor = SCNFloor()
+                floor.reflectivity = 0.5
+                floor.firstMaterial?.diffuse.contents = UIColor.red.withAlphaComponent(0.5)
+                let floorNode = SCNNode(geometry: floor)
+                let floorPhysics = SCNPhysicsBody(type: .static, shape: SCNPhysicsShape(geometry: floor, options: nil))
+                floorPhysics.friction = 0.5
+                floorNode.position = planePosition
+                floorNode.physicsBody = floorPhysics
+                sceneView.scene.rootNode.addChildNode(floorNode)
 
+                // Place the hat
+                if let hat = hatNode {
+                    let boundingBox = hatNode?.boundingBox
+                    let hatHeight = boundingBox!.max.y - boundingBox!.min.y
+                    let hatPosition = SCNVector3Make(transform.columns.3.x, transform.columns.3.y + hatHeight / 2, transform.columns.3.z)
+                    hat.position = hatPosition
+                    sceneView.scene.rootNode.addChildNode(hat)
+                    hatIsPlaced = true
+                }
+            }
+        }
+        else {
+            // throw a ball
+            let ball = SCNSphere(radius: 0.03)
+            let node = SCNNode(geometry: ball)
+            let physicsBody = SCNPhysicsBody.init(type: .dynamic, shape: SCNPhysicsShape(geometry: ball, options: nil))
+            physicsBody.isAffectedByGravity = true
+            physicsBody.friction = 0.5
+            physicsBody.rollingFriction = 0.5
+            node.physicsBody = physicsBody
+            
+            
+            ballsThrown.append(node)
+            
+            if let camera = sceneView.session.currentFrame?.camera {
+                let cameraTransform = camera.transform
+
+                var translation = matrix_identity_float4x4
+                translation.columns.3.z = -0.05 // Translate 10 cm in front of the camera
+                let newMatrix = matrix_multiply(cameraTransform, translation)
+
+                node.simdTransform = newMatrix
+                let impulseVector = SCNVector3Make(node.worldFront.x * 0.5, node.worldFront.y * 0.5, node.worldFront.z * 0.5)
+                node.physicsBody?.applyForce(impulseVector, asImpulse: true)
+                
+                sceneView.scene.rootNode.addChildNode(node)
+            }
+        }
+    }
+    
     // MARK: - ARSCNViewDelegate
     
     // Override to create and configure nodes for anchors added to the view's session.
@@ -63,7 +143,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
     
         if anchor is ARPlaneAnchor {
-            print("Found a plane. Now add a node")
             planeNode = SCNNode()
             return planeNode
         }
@@ -72,10 +151,33 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-        if anchor is ARPlaneAnchor {
-            print("Added a node, now adding a plan geometry")
+        if anchor is ARPlaneAnchor && !hatIsPlaced {
             let planeNode = planeNodeForAnchor(planeAnchor: anchor as! ARPlaneAnchor)
             node.addChildNode(planeNode)
+        }
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
+    
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didSimulatePhysicsAtTime time: TimeInterval) {
+        
+        for i in 0..<ballsThrown.count {
+            let ball = ballsThrown[i]
+            
+            if ball.physicsBody!.isResting {
+                print("resting balls")
+                
+                
+                if hatNode!.boundingBoxContains(point: ball.presentation.position, in: sceneView.scene.rootNode) {
+                    print("BALL IN HAT!!!")
+                
+                }
+                else {
+                    ball.removeFromParentNode()
+                }
+            }
         }
     }
     
@@ -97,7 +199,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     // TODO: Learn rendererUpdateNode method!
-    
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
         
@@ -111,5 +212,39 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     func sessionInterruptionEnded(_ session: ARSession) {
         // Reset tracking and/or remove existing anchors if consistent tracking is required
         
+    }
+}
+
+extension SCNNode {
+    func boundingBoxContains(point: SCNVector3, in node: SCNNode) -> Bool {
+        let localPoint = self.convertPosition(point, from: node)
+        return boundingBoxContains(point: localPoint)
+    }
+    
+    func boundingBoxContains(point: SCNVector3) -> Bool {
+        return BoundingBox(self.boundingBox).contains(point)
+    }
+}
+
+struct BoundingBox {
+    let min: SCNVector3
+    let max: SCNVector3
+    
+    init(_ boundTuple: (min: SCNVector3, max: SCNVector3)) {
+        min = boundTuple.min
+        max = boundTuple.max
+    }
+    
+    func contains(_ point: SCNVector3) -> Bool {
+        let contains =
+            min.x <= point.x &&
+                min.y <= point.y &&
+                min.z <= point.z &&
+                
+                max.x > point.x &&
+                max.y > point.y &&
+                max.z > point.z
+        
+        return contains
     }
 }
