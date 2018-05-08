@@ -48,6 +48,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        
+        createBallInHatToggleButton()
     
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
@@ -110,14 +112,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             // throw a ball
             let ball = SCNSphere(radius: 0.03)
             let node = SCNNode(geometry: ball)
+            node.name = "ball"
             let physicsBody = SCNPhysicsBody.init(type: .dynamic, shape: SCNPhysicsShape(geometry: ball, options: nil))
             physicsBody.isAffectedByGravity = true
             physicsBody.friction = 0.5
             physicsBody.rollingFriction = 0.5
             node.physicsBody = physicsBody
-            
-            
-            ballsThrown.append(node)
             
             if let camera = sceneView.session.currentFrame?.camera {
                 let cameraTransform = camera.transform
@@ -133,6 +133,30 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 sceneView.scene.rootNode.addChildNode(node)
             }
         }
+    }
+    
+    @objc private func switchToggled(sender: UISwitch) {
+        if sender.isOn {
+            print("You turned me ON")
+            for ball in ballsInHat {
+                ball.opacity = 1
+            }
+        }
+        else {
+            print("I am turned OFF")
+            for ball in ballsInHat {
+                ball.opacity = 0
+            }
+        }
+    }
+    
+    func createBallInHatToggleButton() {
+        let frame = CGRect(x: sceneView.frame.width * 3/4, y: sceneView.frame.height * 7/8, width: sceneView.frame.width / 4, height: sceneView.frame.height / 8)
+        let toggle = UISwitch(frame: frame)
+        toggle.addTarget(self, action: #selector(switchToggled), for: .valueChanged)
+        toggle.layer.borderWidth = 2.0
+        toggle.layer.borderColor = UIColor.red.cgColor
+        sceneView.addSubview(toggle)
     }
     
     // MARK: - ARSCNViewDelegate
@@ -157,25 +181,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
     }
     
-    func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
-    
-    }
-    
     func renderer(_ renderer: SCNSceneRenderer, didSimulatePhysicsAtTime time: TimeInterval) {
         
-        for i in 0..<ballsThrown.count {
-            let ball = ballsThrown[i]
+        for node in sceneView.scene.rootNode.childNodes {
+            if node.name == "ball" {
             
-            if ball.physicsBody!.isResting {
-                print("resting balls")
+                if node.physicsBody!.isResting {
                 
-                
-                if hatNode!.boundingBoxContains(point: ball.presentation.position, in: sceneView.scene.rootNode) {
-                    print("BALL IN HAT!!!")
-                
-                }
-                else {
-                    ball.removeFromParentNode()
+                    if hatNode!.boundingBoxContains(point: node.presentation.position,  in: sceneView.scene.rootNode) {
+                        node.name = "ballInHat"
+                        node.physicsBody = nil
+                        node.opacity = 0.0
+                        ballsInHat.append(node)
+                    }
                 }
             }
         }

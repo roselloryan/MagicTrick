@@ -13,22 +13,22 @@
         <scene sceneID="tXr-a1-R10">
             <objects>
                 <viewController id="BV1-FR-VrT" customClass="ViewController" customModule="MagicTrick" customModuleProvider="target" sceneMemberID="viewController">
-                    <arscnView key="view" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" id="BrB-h1-WRS">
+                    <arscnView key="view" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" id="StK-6l-bGS" userLabel="Scene View">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                         <gestureRecognizers/>
                         <connections>
-                            <outletCollection property="gestureRecognizers" destination="msV-P1-h1U" appends="YES" id="Vap-LU-R9M"/>
+                            <outletCollection property="gestureRecognizers" destination="i14-fh-bZR" appends="YES" id="aDg-Ag-hy7"/>
                         </connections>
                     </arscnView>
                     <connections>
-                        <outlet property="sceneView" destination="BrB-h1-WRS" id="5nT-qQ-ynl"/>
+                        <outlet property="sceneView" destination="StK-6l-bGS" id="Pgl-5P-FZO"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="SZV-WD-TEh" sceneMemberID="firstResponder"/>
-                <tapGestureRecognizer id="msV-P1-h1U">
+                <tapGestureRecognizer id="i14-fh-bZR">
                     <connections>
-                        <action selector="tapDetected:" destination="BV1-FR-VrT" id="hrq-2t-Nof"/>
+                        <action selector="tapDetected:" destination="BV1-FR-VrT" id="cr9-4w-HM5"/>
                     </connections>
                 </tapGestureRecognizer>
             </objects>
