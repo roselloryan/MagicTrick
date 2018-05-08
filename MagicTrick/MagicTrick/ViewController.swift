@@ -89,7 +89,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 // Create floor
                 let floor = SCNFloor()
                 floor.reflectivity = 0.5
-                floor.firstMaterial?.diffuse.contents = UIColor.red.withAlphaComponent(0.5)
+                floor.firstMaterial?.diffuse.contents = UIColor.gray.withAlphaComponent(0.5)
                 let floorNode = SCNNode(geometry: floor)
                 let floorPhysics = SCNPhysicsBody(type: .static, shape: SCNPhysicsShape(geometry: floor, options: nil))
                 floorPhysics.friction = 0.5
